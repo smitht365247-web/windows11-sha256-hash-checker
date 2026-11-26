@@ -1,0 +1,14 @@
+Windows 11 Single-Folder SHA-256 Hash Checker - Changelog
+=========================================================
+
+v1.3
+- Check-Folder-SHA256.ps1: Added Export-ToolkitCsv to always write UTF-8 with BOM CSVs, including a valid header-only CSV for empty folders.
+- Check-Folder-SHA256.ps1: Confirmed bare drive-letter support and explicit ACCESS_DENIED status handling for locked/restricted files.
+- RUN_CHECKER.bat: Uses explicit "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" and re-checks "if not defined target" after stripping quotes.
+- Added QuickStart-README.txt, CHANGELOG.txt, and LICENSE.txt (MIT, Copyright 2026 Taylor Smith).
+
+v1.2
+- RUN_CHECKER.bat: Drive-letter fix and live progress output.
+
+v1.1
+- Check-Folder-SHA256.ps1: Hardened -LiteralPath handling for spaces and [brackets], locked file error capture.
