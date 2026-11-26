@@ -1,14 +1,14 @@
-Windows 11 Single-Folder SHA-256 Hash Checker - Changelog
-=========================================================
-
-v1.3
-- Check-Folder-SHA256.ps1: Added Export-ToolkitCsv to always write UTF-8 with BOM CSVs, including a valid header-only CSV for empty folders.
-- Check-Folder-SHA256.ps1: Confirmed bare drive-letter support and explicit ACCESS_DENIED status handling for locked/restricted files.
-- RUN_CHECKER.bat: Uses explicit "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" and re-checks "if not defined target" after stripping quotes.
-- Added QuickStart-README.txt, CHANGELOG.txt, and LICENSE.txt (MIT, Copyright 2026 Taylor Smith).
+v1.3 (2026-11-25)
+- CSV reports always include a header row, including empty folders
+  (no more 0-byte headerless folder_hashes.csv).
+- Added MIT LICENSE.txt (Copyright 2026 Taylor Smith).
+- Named v1.3 because a previous Free-SHA256-Checker-v1.2 file already
+  exists on the Gumroad product.
 
 v1.2
-- RUN_CHECKER.bat: Drive-letter fix and live progress output.
+- Earlier Gumroad package from a previous Gemini round (not this build).
 
 v1.1
-- Check-Folder-SHA256.ps1: Hardened -LiteralPath handling for spaces and [brackets], locked file error capture.
+- Hardened first public release: non-recursive SHA-256 checker,
+  ACCESS_DENIED handling, bare drive-letter and literal-path support.
+- 2026-11-25 (r2): Empty header-only CSVs now write UTF-8 with BOM to match populated CSVs; launcher guards against empty-quote input.
