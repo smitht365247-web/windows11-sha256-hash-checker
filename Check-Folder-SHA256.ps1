@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
-    Hardened v1.1: Generates a SHA-256 hash manifest (folder_hashes.csv) for top-level files
-    in a single folder (non-recursive). Supports bare drive letters, spaces, [brackets], and locked files.
+    Hardened v1.3: Generates a SHA-256 hash manifest (folder_hashes.csv) for top-level files
+    in a single folder (non-recursive). Supports bare drive letters, spaces, [brackets], locked files,
+    ACCESS_DENIED handling, and UTF-8 with BOM header-only CSVs on empty folders.
 #>
 [CmdletBinding()]
 param(
@@ -14,6 +15,25 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+function Export-ToolkitCsv {
+    param(
+        [Parameter(Mandatory = $false)]
+        [object[]]$Rows,
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Headers
+    )
+    $utf8Bom = New-Object System.Text.UTF8Encoding($true)
+    if ($null -eq $Rows -or $Rows.Count -eq 0) {
+        $headerLine = ($Headers | ForEach-Object { '"' + ($_ -replace '"', '""') + '"' }) -join ','
+        [System.IO.File]::WriteAllLines($Path, @($headerLine), $utf8Bom)
+    } else {
+        $csvLines = $Rows | ConvertTo-Csv -NoTypeInformation
+        [System.IO.File]::WriteAllLines($Path, $csvLines, $utf8Bom)
+    }
+}
 
 if ($TargetPath -match '^[A-Za-z]:$') { $TargetPath += '\' }
 
@@ -30,41 +50,38 @@ if (-not $OutputCsv) {
 }
 
 Write-Host "Scanning top-level files only (non-recursive) in: $resolved" -ForegroundColor Cyan
-$files = @(Get-ChildItem -LiteralPath $resolved -File -Force -ErrorAction SilentlyContinue | Where-Object { $_.FullName -ine $OutputCsv })
+$files = @(Get-ChildItem -LiteralPath $resolved -File -Force -ErrorAction SilentlyContinue | Where-Object { $_.FullName -ne $OutputCsv })
 $total = $files.Count
-Write-Host "Found $total file(s). Computing SHA-256 hashes..." -ForegroundColor Cyan
+$results = New-Object System.Collections.Generic.List[object]
 
 $i = 0
-$results = foreach ($f in $files) {
+foreach ($f in $files) {
     $i++
-    if ($i -eq 1 -or ($i % 25 -eq 0) -or $i -eq $total) {
-        Write-Host "  [$i / $total] Hashing: $($f.Name)" -ForegroundColor DarkGray
-    }
+    Write-Host ("[{0}/{1}] Hashing: {2}" -f $i, $total, $f.Name)
+    $hash = ""
+    $status = "OK"
     try {
-        $h = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
-        [PSCustomObject]@{
-            FileName     = $f.Name
-            SizeBytes    = $f.Length
-            SHA256       = $h
-            Status       = "OK"
-            LastWriteUtc = $f.LastWriteTimeUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")
-        }
+        $hash = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+    } catch [System.UnauthorizedAccessException] {
+        $status = "ACCESS_DENIED"
     } catch {
-        [PSCustomObject]@{
-            FileName     = $f.Name
-            SizeBytes    = $f.Length
-            SHA256       = ""
-            Status       = "ACCESS_DENIED"
-            LastWriteUtc = $f.LastWriteTimeUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        if ($_.Exception.Message -match 'Access to the path.*is denied|UnauthorizedAccess') {
+            $status = "ACCESS_DENIED"
+        } else {
+            $status = "ERROR: " + ($_.Exception.Message -replace '[\r\n]+', ' ')
         }
     }
+
+    $results.Add([PSCustomObject]@{
+        FileName      = $f.Name
+        SizeBytes     = $f.Length
+        LastWriteTime = $f.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
+        SHA256        = $hash
+        Status        = $status
+        FullPath      = $f.FullName
+    })
 }
 
-$outDir = Split-Path -Parent $OutputCsv
-if ($outDir -and -not (Test-Path -LiteralPath $outDir)) {
-    New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-}
-
-@($results) | Export-Csv -LiteralPath $OutputCsv -NoTypeInformation -Encoding UTF8
-Write-Host "Done! Hashed $total top-level file(s)." -ForegroundColor Green
-Write-Host "Report saved to: $OutputCsv" -ForegroundColor Green
+$headers = @('FileName', 'SizeBytes', 'LastWriteTime', 'SHA256', 'Status', 'FullPath')
+Export-ToolkitCsv -Rows $results.ToArray() -Path $OutputCsv -Headers $headers
+Write-Host "Done! Manifest saved to: $OutputCsv ($total files processed)" -ForegroundColor Green
