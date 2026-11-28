@@ -1,5 +1,6 @@
 @echo off
 setlocal DisableDelayedExpansion
+cd /d "%~dp0"
 title Free Windows 11 Single-Folder SHA-256 Hash Checker (v1.3)
 
 :START
@@ -12,9 +13,9 @@ echo.
 set "target="
 set /p "target=Paste or drag-and-drop a folder or drive path (or Q to quit): "
 if not defined target goto START
-if /i "%target%"=="Q" exit /b 0
 set "target=%target:"=%"
 if not defined target goto START
+if /i "%target%"=="Q" exit /b 0
 if "%target:~-1%"=="\" set "target=%target:~0,-1%"
 
 echo.
